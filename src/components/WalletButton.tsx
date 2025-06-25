@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Wallet, ChevronDown, Copy, ExternalLink, LogOut, User, AlertTriangle } from 'lucide-react';
+import { Wallet, ChevronDown, Copy, ExternalLink, LogOut, User, AlertTriangle, Coins } from 'lucide-react';
 import { Button } from '../ui';
 import { useWalletContext } from '../contexts/WalletContext';
 import WalletConnectModal from './WalletConnectModal';
@@ -9,17 +9,20 @@ const WalletButton: React.FC = () => {
   const { 
     isConnected, 
     address, 
-    balance, 
+    ethBalance,
+    algoBalance,
+    aglBalance,
     isConnecting, 
     error, 
     connectWallet, 
     disconnectWallet,
-    chainId 
+    chainId,
+    walletType
   } = useWalletContext();
   const [showModal, setShowModal] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
 
-  const handleConnect = async (walletType: 'metamask' | 'walletconnect') => {
+  const handleConnect = async (walletType: 'metamask' | 'walletconnect' | 'pera' | 'myalgo') => {
     await connectWallet(walletType);
   };
 
@@ -34,23 +37,55 @@ const WalletButton: React.FC = () => {
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
   };
 
-  const openEtherscan = () => {
+  const openExplorer = () => {
     if (address) {
-      window.open(`https://etherscan.io/address/${address}`, '_blank');
+      if (walletType === 'metamask') {
+        window.open(`https://etherscan.io/address/${address}`, '_blank');
+      } else if (walletType === 'pera' || walletType === 'myalgo') {
+        window.open(`https://testnet.algoexplorer.io/address/${address}`, '_blank');
+      }
     }
   };
 
-  const getNetworkName = (chainId: string | null) => {
+  const getNetworkName = (chainId: string | null, walletType: string | null) => {
+    if (walletType === 'pera' || walletType === 'myalgo') {
+      return 'Algorand Testnet';
+    }
+    
     switch (chainId) {
       case '0x1':
         return 'Ethereum Mainnet';
-      case '0x5':
-        return 'Goerli Testnet';
+      case '0xaa36a7':
+        return 'Sepolia Testnet';
       case '0x89':
         return 'Polygon';
       default:
         return 'Unknown Network';
     }
+  };
+
+  const getWalletIcon = (walletType: string | null) => {
+    switch (walletType) {
+      case 'metamask':
+        return '🦊';
+      case 'pera':
+        return '🔷';
+      case 'myalgo':
+        return '🟦';
+      case 'walletconnect':
+        return '🔗';
+      default:
+        return '👤';
+    }
+  };
+
+  const getPrimaryBalance = () => {
+    if (walletType === 'metamask') {
+      return `${ethBalance.toFixed(4)} ETH`;
+    } else if (walletType === 'pera' || walletType === 'myalgo') {
+      return `${algoBalance.toFixed(4)} ALGO`;
+    }
+    return '0.0000';
   };
 
   if (!isConnected) {
@@ -89,14 +124,14 @@ const WalletButton: React.FC = () => {
         className="flex items-center space-x-3 px-4 py-2 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-all duration-200 shadow-sm"
       >
         <div className="w-8 h-8 bg-gradient-to-br from-brand-500 to-brand-600 rounded-lg flex items-center justify-center">
-          <User className="w-4 h-4 text-white" />
+          <span className="text-white text-sm">{getWalletIcon(walletType)}</span>
         </div>
         <div className="text-left">
           <p className="font-['Montserrat'] text-[14px] font-[600] text-gray-900">
             {formatAddress(address!)}
           </p>
           <p className="font-['Montserrat'] text-[12px] text-gray-600">
-            {balance.toFixed(4)} ETH
+            {getPrimaryBalance()}
           </p>
         </div>
         <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform duration-200 ${
@@ -124,34 +159,54 @@ const WalletButton: React.FC = () => {
             <div className="p-4 border-b border-gray-100">
               <div className="flex items-center space-x-3">
                 <div className="w-10 h-10 bg-gradient-to-br from-brand-500 to-brand-600 rounded-lg flex items-center justify-center">
-                  <User className="w-5 h-5 text-white" />
+                  <span className="text-white text-lg">{getWalletIcon(walletType)}</span>
                 </div>
                 <div>
                   <p className="font-['Montserrat'] text-[14px] font-[600] text-gray-900">
-                    Connected Wallet
+                    {walletType === 'metamask' ? 'MetaMask' : 
+                     walletType === 'pera' ? 'Pera Wallet' :
+                     walletType === 'myalgo' ? 'MyAlgo Wallet' : 'Connected Wallet'}
                   </p>
                   <p className="font-['Montserrat'] text-[12px] text-gray-600">
-                    {balance.toFixed(6)} ETH
+                    {getNetworkName(chainId, walletType)}
                   </p>
                 </div>
               </div>
             </div>
 
-            {/* Network Info */}
+            {/* Balances */}
             <div className="p-4 border-b border-gray-100">
-              <div className="flex items-center justify-between mb-2">
-                <span className="font-['Montserrat'] text-[12px] text-gray-600">
-                  Network
-                </span>
-                <span className="font-['Montserrat'] text-[12px] font-[600] text-gray-800">
-                  {getNetworkName(chainId)}
-                </span>
-              </div>
-              <div className="flex items-center space-x-2 p-2 bg-purple-50 rounded-lg">
-                <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                <span className="font-['Montserrat'] text-[11px] text-purple-700">
-                  Bridged to Algorand for AI agent deployment
-                </span>
+              <h4 className="font-['Montserrat'] text-[12px] font-[600] text-gray-600 mb-3">
+                Balances
+              </h4>
+              <div className="space-y-2">
+                {walletType === 'metamask' && (
+                  <>
+                    <div className="flex justify-between items-center">
+                      <span className="font-['Montserrat'] text-[13px] text-gray-600">ETH</span>
+                      <span className="font-['Montserrat'] text-[13px] font-[600] text-gray-800">
+                        {ethBalance.toFixed(6)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center space-x-1">
+                        <Coins className="w-3 h-3 text-brand-600" />
+                        <span className="font-['Montserrat'] text-[13px] text-gray-600">AGL</span>
+                      </div>
+                      <span className="font-['Montserrat'] text-[13px] font-[600] text-brand-600">
+                        {aglBalance.toFixed(2)}
+                      </span>
+                    </div>
+                  </>
+                )}
+                {(walletType === 'pera' || walletType === 'myalgo') && (
+                  <div className="flex justify-between items-center">
+                    <span className="font-['Montserrat'] text-[13px] text-gray-600">ALGO</span>
+                    <span className="font-['Montserrat'] text-[13px] font-[600] text-gray-800">
+                      {algoBalance.toFixed(6)}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -173,9 +228,9 @@ const WalletButton: React.FC = () => {
                     <Copy className="w-3 h-3 text-gray-600" />
                   </button>
                   <button
-                    onClick={openEtherscan}
+                    onClick={openExplorer}
                     className="p-1 hover:bg-gray-200 rounded transition-colors"
-                    title="View on Etherscan"
+                    title="View on explorer"
                   >
                     <ExternalLink className="w-3 h-3 text-gray-600" />
                   </button>
@@ -183,16 +238,19 @@ const WalletButton: React.FC = () => {
               </div>
             </div>
 
-            {/* Bridge Notice */}
+            {/* Platform Info */}
             <div className="p-4 border-b border-gray-100">
               <div className="flex items-start space-x-2 p-3 bg-blue-50 rounded-lg">
                 <AlertTriangle className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
                 <div>
                   <p className="font-['Montserrat'] text-[12px] font-[600] text-blue-800">
-                    Cross-Chain Bridge Active
+                    Multi-Chain Platform
                   </p>
                   <p className="font-['Montserrat'] text-[11px] text-blue-700 mt-1">
-                    Your MetaMask wallet is connected via our Algorand bridge. AI agents will be deployed on Algorand blockchain.
+                    {walletType === 'metamask' 
+                      ? 'Use AGL tokens for payments. AI agents deploy on Algorand.'
+                      : 'Connected to Algorand for AI agent deployment and management.'
+                    }
                   </p>
                 </div>
               </div>
