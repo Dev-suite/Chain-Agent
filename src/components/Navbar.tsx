@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Bot, Settings, Wallet, HelpCircle, BookOpen, Star, Info, Menu, X } from 'lucide-react';
+import { Bot, Settings, HelpCircle, BookOpen, Star, Info, Menu, X } from 'lucide-react';
+import WalletButton from './WalletButton';
 
 const Navbar: React.FC = () => {
   const location = useLocation();
@@ -59,22 +60,12 @@ const Navbar: React.FC = () => {
 
           {/* Desktop CTA */}
           <div className="hidden md:flex items-center space-x-4">
-            <Link 
-              to="/dashboard" 
-              className="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-[12px] font-['Montserrat'] text-[14px] font-[600] transition-colors flex items-center space-x-2"
-            >
-              <span>Connect Wallet</span>
-            </Link>
+            <WalletButton />
           </div>
 
           {/* Mobile menu button */}
           <div className="md:hidden flex items-center space-x-2">
-            <Link 
-              to="/dashboard" 
-              className="px-3 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-[12px] font-['Montserrat'] text-[12px] font-[600] transition-colors"
-            >
-              <span>Connect</span>
-            </Link>
+            <WalletButton />
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               className="p-2 rounded-[12px] text-black/80 hover:bg-amber-900/20 transition-colors"
@@ -104,15 +95,6 @@ const Navbar: React.FC = () => {
                   <span>{item.label}</span>
                 </a>
               ))}
-              <div className="pt-2">
-                <Link 
-                  to="/dashboard" 
-                  className="flex items-center justify-center w-full px-3 py-3 bg-brand-600 hover:bg-brand-700 text-white rounded-[12px] font-['Montserrat'] text-[14px] font-[600] transition-colors"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  <span>Connect Wallet</span>
-                </Link>
-              </div>
             </div>
           </div>
         )}

@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCharacters } from '../hooks/useCharacters';
+import { useWalletContext } from '../contexts/WalletContext';
 import { 
   Bot, 
   Plus, 
@@ -16,9 +17,11 @@ import {
   Users,
   LogOut,
   Menu,
-  X
+  X,
+  AlertCircle
 } from 'lucide-react';
 import { Button } from '../ui';
+import WalletButton from '../components/WalletButton';
 
 // Import section components
 import OverviewSection from '../components/OverviewSection';
@@ -33,9 +36,17 @@ import WalletSection from '../components/WalletSection';
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const { characters, loading } = useCharacters();
+  const { isConnected, address, balance } = useWalletContext();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [currentView, setCurrentView] = useState('overview');
+
+  // Redirect to home if wallet is not connected
+  useEffect(() => {
+    if (!loading && !isConnected) {
+      navigate('/');
+    }
+  }, [isConnected, loading, navigate]);
 
   const menuItems = [
     { icon: Home, label: 'Overview', view: 'overview' },
@@ -77,8 +88,8 @@ const Dashboard: React.FC = () => {
     },
     {
       icon: TrendingUp,
-      label: 'Platform Tokens',
-      value: '1,250 ALGO',
+      label: 'Wallet Balance',
+      value: `${balance.toFixed(2)} ALGO`,
       color: 'text-error-600',
       bg: 'bg-error-900/20'
     }
@@ -116,6 +127,7 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  // Show loading state while checking wallet connection
   if (loading) {
     return (
       <div className="min-h-screen bg-brand-900 flex items-center justify-center px-4">
@@ -133,6 +145,35 @@ const Dashboard: React.FC = () => {
             <p className="font-['Montserrat'] text-[14px] sm:text-[16px] font-[400] text-white/80">
               Loading Dashboard...
             </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show wallet connection required message
+  if (!isConnected) {
+    return (
+      <div className="min-h-screen bg-brand-900 flex items-center justify-center px-4">
+        <div className="flex flex-col items-center space-y-6 text-center max-w-md">
+          <div className="w-16 h-16 bg-red-600 rounded-xl flex items-center justify-center">
+            <AlertCircle className="w-8 h-8 text-white" />
+          </div>
+          <div>
+            <h2 className="font-['Montserrat'] text-[24px] font-[700] text-white mb-2">
+              Wallet Required
+            </h2>
+            <p className="font-['Montserrat'] text-[16px] font-[400] text-white/80 mb-6">
+              Please connect your Algorand wallet to access the dashboard and start creating AI agents.
+            </p>
+            <Button
+              variant="brand-primary"
+              size="large"
+              onClick={() => navigate('/')}
+              className="w-full"
+            >
+              Go Back to Home
+            </Button>
           </div>
         </div>
       </div>
@@ -205,13 +246,13 @@ const Dashboard: React.FC = () => {
             ))}
             
             <button
-              onClick={() => {/* Add logout logic */}}
+              onClick={() => navigate('/')}
               className="w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-colors text-error-600 hover:bg-error-900/20"
             >
               <LogOut className="w-5 h-5 flex-shrink-0" />
               {!sidebarCollapsed && (
                 <span className="font-['Montserrat'] text-[14px] font-[500]">
-                  Logout
+                  Back to Home
                 </span>
               )}
             </button>
@@ -289,12 +330,12 @@ const Dashboard: React.FC = () => {
             ))}
             
             <button
-              onClick={() => {/* Add logout logic */}}
+              onClick={() => navigate('/')}
               className="w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-colors text-error-600 hover:bg-error-900/20"
             >
               <LogOut className="w-5 h-5 flex-shrink-0" />
               <span className="font-['Montserrat'] text-[14px] font-[500]">
-                Logout
+                Back to Home
               </span>
             </button>
           </div>
@@ -341,9 +382,7 @@ const Dashboard: React.FC = () => {
               >
                 <Plus className="w-4 h-4" />
               </Button>
-              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-brand-600 rounded-full flex items-center justify-center">
-                <User className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-              </div>
+              <WalletButton />
             </div>
           </div>
         </header>
