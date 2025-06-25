@@ -3,14 +3,14 @@ import { useWalletContext } from '../contexts/WalletContext';
 import { PlatformToken, SwapTransaction } from '../types';
 
 export const usePlatformToken = () => {
-  const { isConnected, address, aglBalance, swapETHForAGL, getAGLContract, walletType } = useWalletContext();
+  const { isConnected, address, signTransaction } = useWalletContext();
   const [platformToken, setPlatformToken] = useState<PlatformToken>({
     symbol: 'AGL',
     name: 'Agent Algo',
     balance: 0,
-    price: 0.001, // 1 AGL = 0.001 ETH
-    totalSupply: 100000000,
-    decimals: 18
+    price: 0.1, // 1 AGL = 0.1 ALGO
+    totalSupply: 10000000,
+    decimals: 6
   });
   const [isSwapping, setIsSwapping] = useState(false);
   const [swapHistory, setSwapHistory] = useState<SwapTransaction[]>([]);
@@ -19,57 +19,77 @@ export const usePlatformToken = () => {
     if (isConnected && address) {
       fetchTokenBalance();
     }
-  }, [isConnected, address, aglBalance]);
+  }, [isConnected, address]);
 
   const fetchTokenBalance = async () => {
     try {
-      // Update balance from wallet context
-      setPlatformToken(prev => ({
-        ...prev,
-        balance: aglBalance
-      }));
+      // Simulate fetching AGL balance from blockchain
+      // In real implementation, this would query the Algorand blockchain
+      const savedBalance = localStorage.getItem(`agl_balance_${address}`);
+      if (savedBalance) {
+        setPlatformToken(prev => ({
+          ...prev,
+          balance: parseFloat(savedBalance)
+        }));
+      }
     } catch (error) {
       console.error('Error fetching token balance:', error);
     }
   };
 
-  const swapAlgoForAGL = async (ethAmount: number): Promise<boolean> => {
-    if (!isConnected || !address || walletType !== 'metamask') {
-      throw new Error('MetaMask wallet not connected');
+  const swapAlgoForAGL = async (algoAmount: number): Promise<boolean> => {
+    if (!isConnected || !address) {
+      throw new Error('Wallet not connected');
     }
 
-    if (ethAmount <= 0) {
+    if (algoAmount <= 0) {
       throw new Error('Invalid amount');
     }
 
     setIsSwapping(true);
 
     try {
-      // Use the wallet context's swap function
-      const transaction = await swapETHForAGL(ethAmount);
+      // Calculate AGL amount (1 ALGO = 10 AGL)
+      const aglAmount = algoAmount / platformToken.price;
 
-      // Calculate AGL amount (1 ETH = 1000 AGL based on contract)
-      const aglAmount = ethAmount * 1000;
+      // Create mock transaction for demonstration
+      const transaction = {
+        from: address,
+        to: 'PLATFORM_TREASURY_ADDRESS',
+        amount: algoAmount * 1000000, // Convert to microAlgos
+        type: 'pay',
+        note: `Swap ${algoAmount} ALGO for ${aglAmount} AGL`
+      };
+
+      // In real implementation, this would be a proper Algorand transaction
+      // await signTransaction(transaction);
+
+      // Simulate transaction processing
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      // Update local balance (in real app, this would come from blockchain)
+      const newBalance = platformToken.balance + aglAmount;
+      setPlatformToken(prev => ({
+        ...prev,
+        balance: newBalance
+      }));
+
+      // Save to localStorage for persistence
+      localStorage.setItem(`agl_balance_${address}`, newBalance.toString());
 
       // Add to swap history
       const swapRecord: SwapTransaction = {
         id: Date.now().toString(),
-        fromToken: 'ETH',
+        fromToken: 'ALGO',
         toToken: 'AGL',
-        amount: ethAmount,
-        rate: 1000, // 1 ETH = 1000 AGL
+        amount: algoAmount,
+        rate: 1 / platformToken.price,
         status: 'completed',
         timestamp: new Date().toISOString(),
-        txHash: transaction.transactionHash || `tx_${Date.now()}`
+        txHash: `mock_tx_${Date.now()}`
       };
 
       setSwapHistory(prev => [swapRecord, ...prev]);
-
-      // Update platform token balance
-      setPlatformToken(prev => ({
-        ...prev,
-        balance: prev.balance + aglAmount
-      }));
 
       return true;
     } catch (error) {
@@ -85,31 +105,7 @@ export const usePlatformToken = () => {
   };
 
   const canCreateAgent = () => {
-    return hasMinimumTokens() && isConnected && walletType === 'metamask';
-  };
-
-  const getContractInfo = async () => {
-    try {
-      const contract = getAGLContract();
-      if (!contract) return null;
-
-      const [name, symbol, decimals, totalSupply] = await Promise.all([
-        contract.methods.name().call(),
-        contract.methods.symbol().call(),
-        contract.methods.decimals().call(),
-        contract.methods.totalSupply().call(),
-      ]);
-
-      return {
-        name,
-        symbol,
-        decimals: parseInt(decimals),
-        totalSupply: parseInt(totalSupply),
-      };
-    } catch (error) {
-      console.error('Error fetching contract info:', error);
-      return null;
-    }
+    return hasMinimumTokens() && isConnected;
   };
 
   return {
@@ -119,7 +115,6 @@ export const usePlatformToken = () => {
     swapAlgoForAGL,
     hasMinimumTokens,
     canCreateAgent,
-    fetchTokenBalance,
-    getContractInfo
+    fetchTokenBalance
   };
 };
