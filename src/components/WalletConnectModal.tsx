@@ -6,7 +6,7 @@ import { Button } from '../ui';
 interface WalletConnectModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onConnect: (walletType: 'metamask' | 'walletconnect') => Promise<void>;
+  onConnect: (walletType: 'pera' | 'algorand' | 'algosigner') => Promise<void>;
   isConnecting: boolean;
   error: string | null;
 }
@@ -18,30 +18,36 @@ const WalletConnectModal: React.FC<WalletConnectModalProps> = ({
   isConnecting,
   error
 }) => {
-  const [selectedWallet, setSelectedWallet] = useState<'metamask' | 'walletconnect' | null>(null);
+  const [selectedWallet, setSelectedWallet] = useState<'pera' | 'algorand' | 'algosigner' | null>(null);
 
   const wallets = [
     {
-      id: 'metamask' as const,
-      name: 'MetaMask',
-      description: 'Connect using MetaMask wallet for Ethereum and cross-chain compatibility',
-      icon: '🦊',
-      downloadUrl: 'https://metamask.io/download/',
-      isPopular: true,
-      isAvailable: typeof window !== 'undefined' && window.ethereum?.isMetaMask
+      id: 'pera' as const,
+      name: 'Pera Wallet',
+      description: 'The official Algorand wallet with mobile and web support',
+      icon: '🔷',
+      downloadUrl: 'https://perawallet.app/',
+      isPopular: true
     },
     {
-      id: 'walletconnect' as const,
-      name: 'WalletConnect',
-      description: 'Connect with any WalletConnect compatible wallet',
-      icon: '🔗',
-      downloadUrl: 'https://walletconnect.com/',
-      isPopular: false,
-      isAvailable: true
+      id: 'algosigner' as const,
+      name: 'AlgoSigner',
+      description: 'Browser extension wallet for Algorand',
+      icon: '🔐',
+      downloadUrl: 'https://chrome.google.com/webstore/detail/algosigner/kmmolakhbgdlpkjkcjkebenjheonagdm',
+      isPopular: false
+    },
+    {
+      id: 'algorand' as const,
+      name: 'Other Algorand Wallets',
+      description: 'Connect with any Algorand-compatible wallet',
+      icon: '⚡',
+      downloadUrl: 'https://algorand.org/ecosystem/wallets',
+      isPopular: false
     }
   ];
 
-  const handleConnect = async (walletType: 'metamask' | 'walletconnect') => {
+  const handleConnect = async (walletType: 'pera' | 'algorand' | 'algosigner') => {
     setSelectedWallet(walletType);
     try {
       await onConnect(walletType);
@@ -84,7 +90,7 @@ const WalletConnectModal: React.FC<WalletConnectModalProps> = ({
                   Connect Wallet
                 </h2>
                 <p className="font-['Montserrat'] text-[14px] text-gray-600">
-                  Choose your preferred wallet to get started
+                  Choose your preferred Algorand wallet
                 </p>
               </div>
             </div>
@@ -121,15 +127,13 @@ const WalletConnectModal: React.FC<WalletConnectModalProps> = ({
                 <motion.button
                   key={wallet.id}
                   onClick={() => handleConnect(wallet.id)}
-                  disabled={isConnecting || !wallet.isAvailable}
-                  whileHover={{ scale: wallet.isAvailable ? 1.02 : 1 }}
-                  whileTap={{ scale: wallet.isAvailable ? 0.98 : 1 }}
+                  disabled={isConnecting}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                   className={`w-full p-4 border-2 rounded-xl text-left transition-all duration-200 relative ${
                     selectedWallet === wallet.id
                       ? 'border-brand-600 bg-brand-50'
-                      : wallet.isAvailable
-                      ? 'border-gray-200 hover:border-brand-300 hover:bg-gray-50'
-                      : 'border-gray-100 bg-gray-50 opacity-50 cursor-not-allowed'
+                      : 'border-gray-200 hover:border-brand-300 hover:bg-gray-50'
                   } ${isConnecting ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   <div className="flex items-center justify-between">
@@ -142,12 +146,7 @@ const WalletConnectModal: React.FC<WalletConnectModalProps> = ({
                           </h3>
                           {wallet.isPopular && (
                             <span className="px-2 py-1 bg-brand-100 text-brand-700 rounded-full text-xs font-medium">
-                              Recommended
-                            </span>
-                          )}
-                          {!wallet.isAvailable && wallet.id === 'metamask' && (
-                            <span className="px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs font-medium">
-                              Not Installed
+                              Popular
                             </span>
                           )}
                         </div>
@@ -159,18 +158,8 @@ const WalletConnectModal: React.FC<WalletConnectModalProps> = ({
                     
                     {selectedWallet === wallet.id && isConnecting ? (
                       <div className="w-5 h-5 border-2 border-brand-600 border-t-transparent rounded-full animate-spin" />
-                    ) : wallet.isAvailable ? (
-                      <ExternalLink className="w-4 h-4 text-gray-400" />
                     ) : (
-                      <a
-                        href={wallet.downloadUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="px-3 py-1 bg-brand-600 text-white rounded-lg text-xs font-medium hover:bg-brand-700 transition-colors"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        Install
-                      </a>
+                      <ExternalLink className="w-4 h-4 text-gray-400" />
                     )}
                   </div>
                 </motion.button>
@@ -182,27 +171,10 @@ const WalletConnectModal: React.FC<WalletConnectModalProps> = ({
                 <CheckCircle className="w-5 h-5 text-blue-500 mt-0.5 flex-shrink-0" />
                 <div>
                   <p className="font-['Montserrat'] text-[14px] font-[600] text-blue-800">
-                    Secure & Decentralized
+                    Secure Connection
                   </p>
                   <p className="font-['Montserrat'] text-[13px] text-blue-700 mt-1">
-                    Your wallet connection is encrypted and secure. We never store your private keys or have access to your funds.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Bridge Info */}
-            <div className="mt-4 p-4 bg-purple-50 border border-purple-200 rounded-xl">
-              <div className="flex items-start space-x-3">
-                <div className="w-5 h-5 bg-purple-500 rounded-full flex items-center justify-center mt-0.5">
-                  <span className="text-white text-xs font-bold">i</span>
-                </div>
-                <div>
-                  <p className="font-['Montserrat'] text-[14px] font-[600] text-purple-800">
-                    Cross-Chain Compatibility
-                  </p>
-                  <p className="font-['Montserrat'] text-[13px] text-purple-700 mt-1">
-                    While we use MetaMask for wallet connection, your AI agents will be deployed on the Algorand blockchain through our bridge technology.
+                    Your wallet connection is encrypted and secure. We never store your private keys.
                   </p>
                 </div>
               </div>
@@ -212,14 +184,14 @@ const WalletConnectModal: React.FC<WalletConnectModalProps> = ({
           {/* Footer */}
           <div className="px-6 py-4 bg-gray-50 border-t border-gray-100">
             <p className="font-['Montserrat'] text-[12px] text-gray-600 text-center">
-              New to crypto wallets?{' '}
+              Don't have a wallet?{' '}
               <a
-                href="https://metamask.io/faqs/"
+                href="https://algorand.org/ecosystem/wallets"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-brand-600 hover:text-brand-700 font-medium"
               >
-                Learn more about MetaMask
+                Download one here
               </a>
             </p>
           </div>

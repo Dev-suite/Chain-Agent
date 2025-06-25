@@ -2,8 +2,6 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCharacters } from '../hooks/useCharacters';
-import { useWalletContext } from '../contexts/WalletContext';
-import { usePlatformToken } from '../hooks/usePlatformToken';
 import { TrendingUp, Users, Gamepad2, Wallet, Bot, Zap, Sparkles, MessageCircle, Crown, Heart, Dice6, ArrowRight, Star } from 'lucide-react';
 import { 
   BoldNavbar, 
@@ -17,18 +15,7 @@ import {
 
 const Landing: React.FC = () => {
   const { characters, loading } = useCharacters();
-  const { isConnected } = useWalletContext();
-  const { platformToken } = usePlatformToken();
   const navigate = useNavigate();
-
-  const handleCreateAgent = () => {
-    if (!isConnected) {
-      // Scroll to connect wallet section or show connect modal
-      navigate('/dashboard');
-    } else {
-      navigate('/dashboard');
-    }
-  };
 
   const stats = [
     {
@@ -47,15 +34,15 @@ const Landing: React.FC = () => {
     },
     {
       icon: Wallet,
-      label: 'AGL Tokens',
-      value: isConnected ? `${platformToken.balance.toLocaleString()}` : '0',
+      label: 'Portfolio Value',
+      value: `${characters.reduce((sum, c) => sum + c.tokenBalance, 0).toFixed(2)} ALGO`,
       color: 'text-purple-500',
       bg: 'bg-purple-500/10 border-purple-500/20'
     },
     {
       icon: TrendingUp,
-      label: 'Platform Growth',
-      value: '+125%',
+      label: 'Platform Tokens',
+      value: '1,250 ALGO',
       color: 'text-yellow-500',
       bg: 'bg-yellow-500/10 border-yellow-500/20'
     }
@@ -124,9 +111,8 @@ const Landing: React.FC = () => {
   <div className="flex flex-col mobile:flex-col sm:flex-row items-center justify-center gap-4 mobile:gap-3">
     <Button
       size="large"
-      onClick={handleCreateAgent}
+      onClick={() => navigate('/dashboard')}
       className="w-full mobile:w-full sm:w-auto"
-      icon={<Sparkles className="w-5 h-5" />}
     >
       Create Your First Agent
     </Button>
@@ -139,25 +125,6 @@ const Landing: React.FC = () => {
       Explore Marketplace
     </Button>
   </div>
-  
-  {/* Live Stats */}
-  {isConnected && (
-    <div className="mt-8 grid grid-cols-2 lg:grid-cols-4 gap-4 max-w-4xl w-full">
-      {stats.map((stat, index) => (
-        <motion.div
-          key={stat.label}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: index * 0.1 }}
-          className={`${stat.bg} border rounded-xl p-4 text-center`}
-        >
-          <stat.icon className={`w-6 h-6 ${stat.color} mx-auto mb-2`} />
-          <div className={`text-2xl font-bold ${stat.color}`}>{stat.value}</div>
-          <div className="text-sm text-white/80">{stat.label}</div>
-        </motion.div>
-      ))}
-    </div>
-  )}
 </div>
         </section>
 
@@ -303,8 +270,7 @@ const Landing: React.FC = () => {
       <Button
         variant="brand-secondary"
         size="large"
-        onClick={handleCreateAgent}
-        icon={<Sparkles className="w-5 h-5" />}
+        onClick={() => navigate('/dashboard')}
       >
         Create your agent
       </Button>
@@ -338,7 +304,7 @@ const Landing: React.FC = () => {
       <div className="flex min-w-[240px] grow shrink-0 basis-0 items-center gap-12 self-stretch px-12 py-12 mobile:px-6 mobile:py-8">
         <span className="max-w-[576px] grow shrink-0 basis-0 whitespace-pre-wrap font-['Montserrat'] text-[18px] font-[400] leading-[26px] text-default-font -tracking-[0.01em]">
           {
-            "Purchase AGL (Agent Algo) tokens by swapping ALGO. Hold minimum required tokens (1000 AGL) to create agents.\n\n"
+            "Purchase platform tokens on supported DEX and hold minimum required tokens (1000 ALGO)\n\n"
           }
         </span>
       </div>
@@ -352,7 +318,7 @@ const Landing: React.FC = () => {
       <div className="flex min-w-[240px] grow shrink-0 basis-0 items-center gap-12 self-stretch px-12 py-12 mobile:px-6 mobile:py-8">
         <span className="max-w-[576px] grow shrink-0 basis-0 whitespace-pre-wrap font-['Montserrat'] text-[18px] font-[400] leading-[26px] text-default-font -tracking-[0.01em]">
           {
-            "Select agent category, describe desired behavior, and review AI-generated profile with personality traits and skills.\n\n\n"
+            "Select agent category, describe desired behavior, and review AI-generated profile\n\n\n"
           }
         </span>
       </div>
@@ -366,7 +332,7 @@ const Landing: React.FC = () => {
       <div className="flex min-w-[240px] grow shrink-0 basis-0 items-center gap-12 self-stretch px-12 py-12 mobile:px-6 mobile:py-8">
         <span className="max-w-[576px] grow shrink-0 basis-0 whitespace-pre-wrap font-['Montserrat'] text-[18px] font-[400] leading-[26px] text-default-font -tracking-[0.01em]">
           {
-            "Pay deployment fee (1000 AGL), agent automatically deploys to Algorand blockchain with optional token generation.\n\n\n"
+            "Pay deployment fee, agent automatically deploys with token generation\n\n\n"
           }
         </span>
       </div>
@@ -452,25 +418,6 @@ const Landing: React.FC = () => {
       trigger={
         <div className="flex w-full items-center gap-2 px-4 py-4">
           <span className="grow shrink-0 basis-0 whitespace-pre-wrap font-['Montserrat'] text-[18px] font-[600] leading-[28px] text-default-font -tracking-[0.01em]">
-            {"What are AGL tokens and how do I get them?\n\n"}
-          </span>
-          <Accordion.Chevron />
-        </div>
-      }
-      defaultOpen={true}
-    >
-      <div className="flex w-full grow shrink-0 basis-0 flex-col items-start gap-6 px-4 py-4">
-        <span className="w-full whitespace-pre-wrap font-['Montserrat'] text-[16px] font-[500] leading-[24px] text-default-font -tracking-[0.01em]">
-          {
-            "AGL (Agent Algo) is our platform token required for creating agents. You can swap ALGO for AGL directly in the platform. Each agent creation costs 1,000 AGL tokens.\n\n\n"
-          }
-        </span>
-      </div>
-    </Accordion>
-    <Accordion
-      trigger={
-        <div className="flex w-full items-center gap-2 px-4 py-4">
-          <span className="grow shrink-0 basis-0 whitespace-pre-wrap font-['Montserrat'] text-[18px] font-[600] leading-[28px] text-default-font -tracking-[0.01em]">
             {"Why launch on Algorand?\n\n"}
           </span>
           <Accordion.Chevron />
@@ -517,4 +464,4 @@ const Landing: React.FC = () => {
   );
 };
 
-export default Landing;
+export default Landing; 

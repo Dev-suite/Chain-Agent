@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { Character } from '../types';
-import { useWalletContext } from '../contexts/WalletContext';
 
 const mockCharacters: Character[] = [
   {
@@ -81,45 +80,18 @@ const mockCharacters: Character[] = [
 ];
 
 export const useCharacters = () => {
-  const { address, isConnected } = useWalletContext();
   const [characters, setCharacters] = useState<Character[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadCharacters();
-  }, [address, isConnected]);
-
-  const loadCharacters = () => {
-    setLoading(true);
-    
-    if (!isConnected || !address) {
-      setCharacters([]);
-      setLoading(false);
-      return;
-    }
-
-    // Load user's agents from localStorage
-    const savedAgents = localStorage.getItem(`agents_${address}`);
-    if (savedAgents) {
-      try {
-        const userAgents = JSON.parse(savedAgents);
-        setCharacters([...userAgents, ...mockCharacters]);
-      } catch (error) {
-        console.error('Error loading saved agents:', error);
-        setCharacters(mockCharacters);
-      }
-    } else {
+    // Simulate API call
+    setTimeout(() => {
       setCharacters(mockCharacters);
-    }
-    
-    setLoading(false);
-  };
+      setLoading(false);
+    }, 1000);
+  }, []);
 
   const createCharacter = async (characterData: Partial<Character>) => {
-    if (!address) {
-      throw new Error('Wallet not connected');
-    }
-
     const newCharacter: Character = {
       id: Date.now().toString(),
       name: characterData.name || 'New Character',
@@ -131,13 +103,11 @@ export const useCharacters = () => {
       experience: 0,
       status: 'idle',
       lastActivity: 'Just created',
-      walletAddress: address,
       tokenBalance: 0,
       gamesPlayed: 0,
       winRate: 0,
       createdAt: new Date().toISOString().split('T')[0],
-      agentType: characterData.agentType,
-      traits: characterData.traits || {
+      traits: {
         intelligence: Math.floor(Math.random() * 40) + 60,
         creativity: Math.floor(Math.random() * 40) + 60,
         humor: Math.floor(Math.random() * 40) + 60,
@@ -146,12 +116,7 @@ export const useCharacters = () => {
       }
     };
 
-    // Save to localStorage
-    const existingAgents = JSON.parse(localStorage.getItem(`agents_${address}`) || '[]');
-    const updatedAgents = [...existingAgents, newCharacter];
-    localStorage.setItem(`agents_${address}`, JSON.stringify(updatedAgents));
-
-    setCharacters(prev => [newCharacter, ...prev]);
+    setCharacters(prev => [...prev, newCharacter]);
     return newCharacter;
   };
 
@@ -159,25 +124,10 @@ export const useCharacters = () => {
     setCharacters(prev => 
       prev.map(char => char.id === id ? { ...char, ...updates } : char)
     );
-
-    // Update localStorage
-    if (address) {
-      const userAgents = characters.filter(c => c.walletAddress === address);
-      const updatedUserAgents = userAgents.map(char => 
-        char.id === id ? { ...char, ...updates } : char
-      );
-      localStorage.setItem(`agents_${address}`, JSON.stringify(updatedUserAgents));
-    }
   };
 
   const deleteCharacter = (id: string) => {
     setCharacters(prev => prev.filter(char => char.id !== id));
-
-    // Update localStorage
-    if (address) {
-      const userAgents = characters.filter(c => c.walletAddress === address && c.id !== id);
-      localStorage.setItem(`agents_${address}`, JSON.stringify(userAgents));
-    }
   };
 
   return {
@@ -185,7 +135,6 @@ export const useCharacters = () => {
     loading,
     createCharacter,
     updateCharacter,
-    deleteCharacter,
-    loadCharacters
+    deleteCharacter
   };
 };

@@ -85,28 +85,3 @@ export interface MarketplaceAgent {
   tags: string[];
   verified: boolean;
 }
-
-export interface PlatformToken {
-  symbol: string;
-  name: string;
-  balance: number;
-  price: number;
-  totalSupply: number;
-  decimals: number;
-}
-
-export interface AgentCreationData {
-  type: 'influencer' | 'companion' | 'gamemaster';
-  name: string;
-  description: string;
-  personality: string;
-  avatar: File | string;
-  voiceEnabled: boolean;
-  voiceType: 'male' | 'female' | 'neutral';
-  generateToken: boolean;
-  tokenName: string;
-  tokenSymbol: string;
-  platforms: string[];
-  skills: string[];
-  backstory: string;
-}

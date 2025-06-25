@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, createContext, useContext } from 'react';
 
 export interface WalletState {
   isConnected: boolean;
@@ -6,26 +6,34 @@ export interface WalletState {
   balance: number;
   isConnecting: boolean;
   error: string | null;
-  chainId: string | null;
 }
 
 export interface WalletContextType extends WalletState {
-  connectWallet: (walletType?: 'metamask' | 'walletconnect') => Promise<void>;
+  connectWallet: () => Promise<void>;
   disconnectWallet: () => void;
   signTransaction: (txn: any) => Promise<any>;
-  switchToAlgorandNetwork: () => Promise<void>;
 }
 
-// MetaMask Ethereum provider types
+// Algorand wallet types
 declare global {
   interface Window {
-    ethereum?: {
-      isMetaMask?: boolean;
-      request: (args: { method: string; params?: any[] }) => Promise<any>;
-      on: (event: string, callback: (data: any) => void) => void;
-      removeListener: (event: string, callback: (data: any) => void) => void;
-      selectedAddress: string | null;
-      chainId: string | null;
+    algorand?: {
+      enable: () => Promise<{ accounts: string[] }>;
+      signTransaction: (txn: any) => Promise<any>;
+      isConnected: () => boolean;
+      disconnect: () => void;
+    };
+    AlgoSigner?: {
+      connect: () => Promise<void>;
+      accounts: (params: { ledger: string }) => Promise<Array<{ address: string }>>;
+      algod: (params: { ledger: string; path: string }) => Promise<any>;
+      sign: (txn: any) => Promise<any>;
+    };
+    PeraWallet?: {
+      connect: () => Promise<string[]>;
+      disconnect: () => void;
+      signTransaction: (txnGroup: any[], signerAddress?: string) => Promise<any>;
+      isConnected: () => boolean;
     };
   }
 }
@@ -37,182 +45,149 @@ export const useWallet = () => {
     balance: 0,
     isConnecting: false,
     error: null,
-    chainId: null,
   });
 
   // Check for existing connection on mount
   useEffect(() => {
     checkExistingConnection();
-    setupEventListeners();
-    
-    return () => {
-      removeEventListeners();
-    };
   }, []);
 
   const checkExistingConnection = async () => {
     try {
-      if (!window.ethereum) return;
-
-      const accounts = await window.ethereum.request({ method: 'eth_accounts' });
-      const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+      const savedAddress = localStorage.getItem('wallet_address');
+      const savedWalletType = localStorage.getItem('wallet_type');
       
-      if (accounts.length > 0) {
-        const balance = await fetchBalance(accounts[0]);
-        setWalletState({
-          isConnected: true,
-          address: accounts[0],
-          balance,
-          isConnecting: false,
-          error: null,
-          chainId,
-        });
+      if (savedAddress && savedWalletType) {
+        // Verify the connection is still valid
+        const isStillConnected = await verifyConnection(savedWalletType);
+        if (isStillConnected) {
+          const balance = await fetchBalance(savedAddress);
+          setWalletState({
+            isConnected: true,
+            address: savedAddress,
+            balance,
+            isConnecting: false,
+            error: null,
+          });
+        } else {
+          // Clear invalid connection
+          localStorage.removeItem('wallet_address');
+          localStorage.removeItem('wallet_type');
+        }
       }
     } catch (error) {
       console.error('Error checking existing connection:', error);
     }
   };
 
-  const setupEventListeners = () => {
-    if (!window.ethereum) return;
-
-    window.ethereum.on('accountsChanged', handleAccountsChanged);
-    window.ethereum.on('chainChanged', handleChainChanged);
-    window.ethereum.on('disconnect', handleDisconnect);
-  };
-
-  const removeEventListeners = () => {
-    if (!window.ethereum) return;
-
-    window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
-    window.ethereum.removeListener('chainChanged', handleChainChanged);
-    window.ethereum.removeListener('disconnect', handleDisconnect);
-  };
-
-  const handleAccountsChanged = async (accounts: string[]) => {
-    if (accounts.length === 0) {
-      disconnectWallet();
-    } else {
-      const balance = await fetchBalance(accounts[0]);
-      setWalletState(prev => ({
-        ...prev,
-        address: accounts[0],
-        balance,
-        isConnected: true,
-      }));
+  const verifyConnection = async (walletType: string): Promise<boolean> => {
+    try {
+      switch (walletType) {
+        case 'pera':
+          return window.PeraWallet?.isConnected() || false;
+        case 'algorand':
+          return window.algorand?.isConnected() || false;
+        case 'algosigner':
+          // AlgoSigner doesn't have a direct isConnected method
+          return true;
+        default:
+          return false;
+      }
+    } catch {
+      return false;
     }
-  };
-
-  const handleChainChanged = (chainId: string) => {
-    setWalletState(prev => ({
-      ...prev,
-      chainId,
-    }));
-    // Reload the page to reset the dapp state
-    window.location.reload();
-  };
-
-  const handleDisconnect = () => {
-    disconnectWallet();
   };
 
   const fetchBalance = async (address: string): Promise<number> => {
     try {
-      if (!window.ethereum) return 0;
-
-      const balance = await window.ethereum.request({
-        method: 'eth_getBalance',
-        params: [address, 'latest'],
-      });
-
-      // Convert from Wei to ETH (for demo purposes, we'll treat this as ALGO equivalent)
-      const ethBalance = parseInt(balance, 16) / Math.pow(10, 18);
-      return ethBalance;
+      // In a real implementation, you'd call the Algorand API
+      // For now, we'll simulate with a random balance
+      const response = await fetch(`https://testnet-api.algonode.cloud/v2/accounts/${address}`);
+      if (response.ok) {
+        const data = await response.json();
+        return data.amount / 1000000; // Convert microAlgos to Algos
+      }
+      return 0;
     } catch (error) {
       console.error('Error fetching balance:', error);
       return 0;
     }
   };
 
-  const connectMetaMask = async (): Promise<string> => {
-    if (!window.ethereum) {
-      throw new Error('MetaMask not found. Please install MetaMask extension.');
-    }
-
-    if (!window.ethereum.isMetaMask) {
-      throw new Error('Please use MetaMask wallet.');
+  const connectPeraWallet = async (): Promise<string> => {
+    if (!window.PeraWallet) {
+      throw new Error('Pera Wallet not found. Please install Pera Wallet extension.');
     }
 
     try {
-      const accounts = await window.ethereum.request({
-        method: 'eth_requestAccounts',
-      });
-
+      const accounts = await window.PeraWallet.connect();
       if (accounts && accounts.length > 0) {
         return accounts[0];
       }
       throw new Error('No accounts found');
     } catch (error: any) {
-      if (error.code === 4001) {
-        throw new Error('User rejected the connection request');
-      }
-      throw new Error(`MetaMask connection failed: ${error.message}`);
+      throw new Error(`Pera Wallet connection failed: ${error.message}`);
     }
   };
 
-  const switchToAlgorandNetwork = async () => {
-    if (!window.ethereum) {
-      throw new Error('MetaMask not found');
+  const connectAlgorandWallet = async (): Promise<string> => {
+    if (!window.algorand) {
+      throw new Error('Algorand Wallet not found. Please install an Algorand-compatible wallet.');
     }
 
     try {
-      // For demo purposes, we'll use a custom network ID to represent Algorand
-      // In a real implementation, you'd use a proper Algorand-compatible network
-      await window.ethereum.request({
-        method: 'wallet_switchEthereumChain',
-        params: [{ chainId: '0x1' }], // Ethereum mainnet for demo
-      });
-    } catch (error: any) {
-      if (error.code === 4902) {
-        // Network not added, add it
-        await window.ethereum.request({
-          method: 'wallet_addEthereumChain',
-          params: [{
-            chainId: '0x1',
-            chainName: 'Ethereum Mainnet (Algorand Bridge)',
-            nativeCurrency: {
-              name: 'Ethereum',
-              symbol: 'ETH',
-              decimals: 18,
-            },
-            rpcUrls: ['https://mainnet.infura.io/v3/'],
-            blockExplorerUrls: ['https://etherscan.io/'],
-          }],
-        });
-      } else {
-        throw error;
+      const result = await window.algorand.enable();
+      if (result.accounts && result.accounts.length > 0) {
+        return result.accounts[0];
       }
+      throw new Error('No accounts found');
+    } catch (error: any) {
+      throw new Error(`Algorand Wallet connection failed: ${error.message}`);
     }
   };
 
-  const connectWallet = async (walletType: 'metamask' | 'walletconnect' = 'metamask') => {
+  const connectAlgoSigner = async (): Promise<string> => {
+    if (!window.AlgoSigner) {
+      throw new Error('AlgoSigner not found. Please install AlgoSigner extension.');
+    }
+
+    try {
+      await window.AlgoSigner.connect();
+      const accounts = await window.AlgoSigner.accounts({ ledger: 'TestNet' });
+      if (accounts && accounts.length > 0) {
+        return accounts[0].address;
+      }
+      throw new Error('No accounts found');
+    } catch (error: any) {
+      throw new Error(`AlgoSigner connection failed: ${error.message}`);
+    }
+  };
+
+  const connectWallet = async (walletType: 'pera' | 'algorand' | 'algosigner' = 'pera') => {
     setWalletState(prev => ({ ...prev, isConnecting: true, error: null }));
 
     try {
       let address: string;
 
       switch (walletType) {
-        case 'metamask':
-          address = await connectMetaMask();
+        case 'pera':
+          address = await connectPeraWallet();
           break;
-        case 'walletconnect':
-          throw new Error('WalletConnect not implemented yet');
+        case 'algorand':
+          address = await connectAlgorandWallet();
+          break;
+        case 'algosigner':
+          address = await connectAlgoSigner();
+          break;
         default:
           throw new Error('Unsupported wallet type');
       }
 
       const balance = await fetchBalance(address);
-      const chainId = await window.ethereum!.request({ method: 'eth_chainId' });
+
+      // Save connection info
+      localStorage.setItem('wallet_address', address);
+      localStorage.setItem('wallet_type', walletType);
 
       setWalletState({
         isConnected: true,
@@ -220,12 +195,7 @@ export const useWallet = () => {
         balance,
         isConnecting: false,
         error: null,
-        chainId,
       });
-
-      // Save connection info
-      localStorage.setItem('wallet_address', address);
-      localStorage.setItem('wallet_type', walletType);
 
       // Dispatch custom event for other components
       window.dispatchEvent(new CustomEvent('walletConnected', { 
@@ -243,6 +213,25 @@ export const useWallet = () => {
   };
 
   const disconnectWallet = () => {
+    const walletType = localStorage.getItem('wallet_type');
+    
+    try {
+      // Disconnect from the specific wallet
+      switch (walletType) {
+        case 'pera':
+          window.PeraWallet?.disconnect();
+          break;
+        case 'algorand':
+          window.algorand?.disconnect();
+          break;
+        case 'algosigner':
+          // AlgoSigner doesn't have a disconnect method
+          break;
+      }
+    } catch (error) {
+      console.error('Error disconnecting wallet:', error);
+    }
+
     // Clear local storage
     localStorage.removeItem('wallet_address');
     localStorage.removeItem('wallet_type');
@@ -254,7 +243,6 @@ export const useWallet = () => {
       balance: 0,
       isConnecting: false,
       error: null,
-      chainId: null,
     });
 
     // Dispatch custom event
@@ -262,31 +250,29 @@ export const useWallet = () => {
   };
 
   const signTransaction = async (txn: any) => {
+    const walletType = localStorage.getItem('wallet_type');
+    
     if (!walletState.isConnected || !walletState.address) {
       throw new Error('Wallet not connected');
     }
 
-    if (!window.ethereum) {
-      throw new Error('MetaMask not available');
-    }
-
     try {
-      // For demo purposes, we'll create a simple transaction
-      const transactionParameters = {
-        to: txn.to || '0x0000000000000000000000000000000000000000',
-        from: walletState.address,
-        value: txn.value || '0x0',
-        data: txn.data || '0x',
-        gasPrice: '0x09184e72a000',
-        gas: '0x2710',
-      };
-
-      const txHash = await window.ethereum.request({
-        method: 'eth_sendTransaction',
-        params: [transactionParameters],
-      });
-
-      return txHash;
+      switch (walletType) {
+        case 'pera':
+          if (!window.PeraWallet) throw new Error('Pera Wallet not available');
+          return await window.PeraWallet.signTransaction([txn], walletState.address);
+        
+        case 'algorand':
+          if (!window.algorand) throw new Error('Algorand Wallet not available');
+          return await window.algorand.signTransaction(txn);
+        
+        case 'algosigner':
+          if (!window.AlgoSigner) throw new Error('AlgoSigner not available');
+          return await window.AlgoSigner.sign(txn);
+        
+        default:
+          throw new Error('Unknown wallet type');
+      }
     } catch (error: any) {
       throw new Error(`Transaction signing failed: ${error.message}`);
     }
@@ -297,6 +283,5 @@ export const useWallet = () => {
     connectWallet,
     disconnectWallet,
     signTransaction,
-    switchToAlgorandNetwork,
   };
 };
